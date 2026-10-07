@@ -1,0 +1,48 @@
+# Codemagic (codemagic.io) : compilation ET signature iOS sans Mac.
+# Connectez votre compte Apple Developer dans Codemagic (Teams › Integrations › App Store Connect),
+# puis lancez le workflow « lago-ios ».
+workflows:
+  lago-ios:
+    name: LaGo iOS (TestFlight)
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.lago.cycle
+    integrations:
+      app_store_connect: codemagic
+    scripts:
+      - name: Projets natifs
+        script: dart run tool/setup.dart
+      - name: Tests
+        script: flutter test
+      - name: Profils de signature
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  lago-android:
+    name: LaGo Android
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Projets natifs
+        script: dart run tool/setup.dart
+      - name: Tests
+        script: flutter test
+      - name: Build
+        script: |
+          flutter build apk --release
+          flutter build appbundle --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab

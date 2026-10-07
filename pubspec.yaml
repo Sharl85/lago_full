@@ -1,0 +1,84 @@
+name: lago
+description: "LaGo - Suivi bienveillant du cycle menstruel (Android & iOS)."
+publish_to: 'none'
+version: 4.3.0+7
+
+environment:
+  sdk: '>=3.7.0 <4.0.0'
+  flutter: '>=3.29.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  shared_preferences: ^2.3.2
+  http: ^1.2.2
+  crypto: ^3.0.5
+  flutter_local_notifications: ^19.2.1
+  timezone: ^0.10.0
+  share_plus: ^10.1.4
+  file_picker: ^8.1.4
+  audioplayers: ^6.1.0
+  path_provider: ^2.1.4
+  image_picker: ^1.1.2
+  cryptography: ^2.7.0
+  pdf: ^3.11.1
+  home_widget: ^0.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/logo.png
+    - assets/sounds/
+  fonts:
+    - family: Cormorant
+      fonts:
+        - asset: assets/fonts/CormorantGaramond_400Regular.ttf
+        - asset: assets/fonts/CormorantGaramond_400Regular_Italic.ttf
+          style: italic
+        - asset: assets/fonts/CormorantGaramond_600SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/CormorantGaramond_700Bold.ttf
+          weight: 700
+    - family: Jakarta
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans_400Regular.ttf
+        - asset: assets/fonts/PlusJakartaSans_500Medium.ttf
+          weight: 500
+        - asset: assets/fonts/PlusJakartaSans_600SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans_700Bold.ttf
+          weight: 700
+
+# Icône de l'application : `dart run flutter_launcher_icons`
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icon/icon.png"
+  remove_alpha_ios: true
+  background_color_ios: "#fce4ec"
+  adaptive_icon_background: "#fce4ec"
+  adaptive_icon_foreground: "assets/icon/icon-foreground.png"
+  min_sdk_android: 21
+
+# Écran de démarrage : `dart run flutter_native_splash:create`
+flutter_native_splash:
+  color: "#fff5f7"
+  image: assets/icon/logo.png
+  color_dark: "#1f141d"
+  image_dark: assets/icon/logo.png
+  android_12:
+    color: "#fff5f7"
+    color_dark: "#1f141d"
+    image: assets/icon/icon-foreground.png
+  ios: true
+  android: true
+  web: false
