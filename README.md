@@ -1,6 +1,42 @@
-# LaGo 🌸 — Application Flutter (Android & iOS) · v4.3
+# LaGo 🌸 — Application Flutter (Android & iOS) · v5.0
 
 Réécriture complète de LaGo en **Flutter** : un seul code Dart pour **Android** et **iOS**, entièrement natif (plus de page web dans l'app).
+
+## Nouveautés 5.0
+
+**Prévisions plus justes (comme Flo)**
+- Ovulation au jour 14 pour un cycle de 28 jours ; « règles en retard de X jours » au lieu d'un nouveau cycle silencieux.
+- **Fourchette** des prochaines règles (« 3 – 6 nov. »), plus large si les cycles notés varient.
+- Journal : **test d'ovulation** et **glaire cervicale**. Un test positif, une hausse de température (3 jours ≥ +0,2 °C) ou la glaire « blanc d'œuf » **confirment l'ovulation** et recalculent les prochaines règles (ovulation + 14 j).
+- **Signaux de santé** (« À surveiller ») : cycles courts/longs répétés, règles longues ou abondantes, douleurs fréquentes, saignements entre les règles, absence de règles > 3 mois. LaGo ne pose jamais de diagnostic.
+
+**Modes de vie** (Profil › Mode de vie & contraception) : cycle, **grossesse** (SA, trimestre, terme, semaine par semaine), **post-partum**, **préménopause**, et **contraception** (avec une méthode hormonale, la fenêtre fertile et ses alertes sont masquées). **Mode Ramadan**.
+
+**Pensé pour l'Afrique francophone**
+- **LaGo Premium par Mobile Money** (MTN MoMo, Orange Money… via CinetPay). Par défaut **aucune fonction existante n'est réservée** au Premium (`Premium.gatedFeatures` dans `lib/core/premium.dart`).
+- **Rappels SMS / WhatsApp** sur consentement, message discret par défaut.
+- **Économie de données** : synchronisation seulement en glissant l'accueil vers le bas.
+- Guides : Ramadan, hygiène quand les protections manquent, mythes et tabous, contraception.
+
+**Confiance** : **mode anonyme** (sans email, rien sur internet), page **Vos données**, **accord parental** demandé sous 15 ans.
+
+**Fidélisation** : **assistante** (hors ligne à partir des contenus validés ; en ligne si activée), **communauté** anonyme modérée, **bilan du mois** (+ notification le 1er), **partage des dates** sans les notes, **partenaires santé** (pharmacies, codes promo, téléconsultation), outils Super Admin (modération, partenaires, **statistiques anonymisées pour les ONG**, groupes ≥ 10).
+
+Tout est regroupé dans **Accueil › Plus de LaGo**.
+
+### Activer les services côté serveur (`server/`)
+
+Chaque service est désactivé tant que ses variables ne sont pas définies (détails en tête de `server/features.js`) :
+
+| Service | Variables |
+|---|---|
+| Premium CinetPay | `PUBLIC_URL`, `CINETPAY_APIKEY`, `CINETPAY_SITE_ID`, `CINETPAY_SECRET_KEY`, `PREMIUM_CURRENCY` (XAF), `PREMIUM_PRICE_MONTH` (500), `PREMIUM_PRICE_YEAR` (4000) |
+| SMS / WhatsApp | `MESSAGING_PROVIDER` (`twilio` ou `webhook`), `TWILIO_*` ou `MESSAGING_WEBHOOK_URL`, `MESSAGING_HOUR` |
+| Assistante en ligne | `ANTHROPIC_API_KEY`, `ASSISTANT_MODEL` |
+
+Dans le tableau de bord CinetPay, l'URL de notification est `PUBLIC_URL/api/premium/notify`. Tests du serveur : `cd server && npm test`.
+
+> Les contenus santé (guides, grossesse, réponses de l'assistante) sont à faire relire par une sage-femme ou un médecin avant la publication sur les stores.
 
 ## Nouveautés 4.3
 
