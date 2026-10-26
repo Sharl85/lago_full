@@ -7,6 +7,7 @@ import '../widgets/common.dart';
 import '../widgets/profile_widgets.dart';
 import 'register_screen.dart';
 import '../l10n/l10n.dart';
+import 'privacy_screen.dart';
 
 /// Connexion / Inscription / Accès démo 1-clic.
 /// [standalone] = écran d'accueil (sinon ouvert depuis le menu « Changer de compte »).
@@ -118,6 +119,14 @@ class _AuthScreenState extends State<AuthScreen> {
                                 : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
                             icon: const Icon(Icons.person_add_alt),
                             label: const T('Créer mon compte LaGo'),
+                          ),
+                          // v5 — mode anonyme : sans email, données uniquement sur ce téléphone
+                          TextButton.icon(
+                            onPressed: _busy
+                                ? null
+                                : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AnonymousSignupScreen())),
+                            icon: const Icon(Icons.privacy_tip_outlined),
+                            label: const T('Utiliser LaGo sans email (anonyme)'),
                           ),
                         ],
                       ),

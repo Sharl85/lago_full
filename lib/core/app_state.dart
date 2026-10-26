@@ -12,7 +12,10 @@ import '../l10n/l10n.dart';
 import 'calculator.dart';
 import 'models.dart';
 import 'notifications.dart';
+import 'prediction.dart';
+import 'premium.dart';
 import 'tracker.dart';
+import 'utils.dart';
 
 /// État global de l'application (source unique pour tous les écrans).
 class AppState extends ChangeNotifier {
@@ -35,6 +38,11 @@ class AppState extends ChangeNotifier {
   List<Appointment> appointments = const [];
   CycleData cycle = CycleCalculator.calculate(CycleSettings.defaults().lastPeriodDate, 28, 5);
   Map<String, DayLog> logs = {};
+
+  /// v5 — fourchette des prochaines règles, ovulation détectée, signaux de santé.
+  PeriodWindow? periodWindow;
+  OvulationSign? ovulationSign;
+  List<HealthSignal> healthSignals = const [];
   SyncState syncState = SyncState.guest;
   bool locked = false;
   bool ready = false;
@@ -58,6 +66,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> init() async {
     Api.onUnauthorized = _onSessionExpired;
+    ServerFeatures.loadCache();
     Reminders.onTap = (payload) {
       if (payload == AlertType.dailyTip.key) requestedTab.value = isParent ? 1 : 3;
       if (!isParent && (payload == AlertType.dailyLog.key || payload == AlertType.periodStart.key)) requestedTab.value = 1;
@@ -76,6 +85,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     await syncNow(pull: true);
     await rescheduleReminders();
+    _refreshServerExtras();
+  }
+
+  /// v5 — fonctions du serveur et statut Premium (sans bloquer l'interface).
+  Future<void> _refreshServerExtras() async {
+    try {
+      await ServerFeatures.refresh();
+      final u = user;
+      if (u != null && u.isServer) {
+        await Premium.refresh(u.id);
+        if (Premium.hasPending(u.id)) await Premium.verifyPending(u.id);
+      }
+      notifyListeners();
+    } catch (_) {}
   }
 
   void _bindUser() {
@@ -86,6 +109,7 @@ class AppState extends ChangeNotifier {
     alertPrefs = AlertPrefs.load(user?.id ?? 'default');
     avatar = AvatarPref.load(user?.id ?? 'default', admin: user?.isAdmin ?? false);
     appointments = Appointments.load(user?.id ?? 'default');
+    Premium.load(user?.id ?? 'default');
     reload();
   }
 
@@ -96,6 +120,18 @@ class AppState extends ChangeNotifier {
     insights = CycleInsights.compute(logs);
     effective = insights.apply(settings);
     cycle = CycleCalculator.calculate(effective.lastPeriodDate, effective.cycleLength, effective.periodDuration);
+    // v5 : ovulation confirmée par les signes notés (test LH, température, glaire) — sauf contraception hormonale
+    ovulationSign = null;
+    if (effective.tracksPeriods && !Contraception.isHormonal(effective.contraception)) {
+      ovulationSign = FertilitySigns.detect(logs, cycle.currentPeriodStart, Dates.today());
+      if (ovulationSign != null) {
+        cycle = CycleCalculator.calculate(effective.lastPeriodDate, effective.cycleLength, effective.periodDuration,
+            confirmedOvulation: ovulationSign!.date);
+        if (!cycle.ovulationConfirmed) ovulationSign = null;
+      }
+    }
+    periodWindow = PeriodWindow.compute(cycle, insights, effective);
+    healthSignals = HealthSignals.evaluate(logs: logs, insights: insights, settings: effective, cycle: cycle, age: user?.age);
     notifyListeners();
     LagoHomeWidget.update(cycle: user == null ? null : cycle, discreet: settings.discreetMode, parent: isParent);
   }
@@ -131,6 +167,7 @@ class AppState extends ChangeNotifier {
     loadingAccount = false;
     notifyListeners();
     await rescheduleReminders();
+    _refreshServerExtras();
   }
 
   /// Nouveau téléphone : récupère la photo de profil chiffrée (si l'utilisatrice l'avait sauvegardée).
@@ -216,22 +253,42 @@ class AppState extends ChangeNotifier {
   }
 
   // ------------------------------------------------------------------ Données
+  // v5 — économie de données : pas de synchronisation automatique, seulement en glissant vers le bas.
+  void _autoSync() {
+    if (!settings.dataSaver) syncNow();
+  }
+
   Future<void> updateSettings(CycleSettings s) async {
     await tracker.saveSettings(s);
     reload();
-    syncNow();
+    _autoSync();
   }
 
   Future<void> saveLog(String date, DayLog log) async {
     await tracker.saveLog(date, log);
     reload();
-    syncNow();
+    _autoSync();
   }
 
   Future<void> deleteLog(String date) async {
     await tracker.deleteLog(date);
     reload();
-    syncNow();
+    _autoSync();
+  }
+
+  /// v5 — rafraîchit le statut Premium (ex. au retour de la page de paiement).
+  Future<bool> refreshPremium() async {
+    final u = user;
+    if (u == null || !u.isServer) return false;
+    bool ok;
+    if (Premium.hasPending(u.id)) {
+      ok = await Premium.verifyPending(u.id);
+    } else {
+      await Premium.refresh(u.id);
+      ok = Premium.active;
+    }
+    notifyListeners();
+    return ok;
   }
 
   Future<int> rescheduleReminders() async {
@@ -243,6 +300,8 @@ class AppState extends ChangeNotifier {
         age: user?.age,
         appointments: appointments.where((a) => !a.isPast).toList(),
         cycleAlerts: !isParent,
+        periodAlerts: effective.tracksPeriods,
+        fertilityAlerts: !Contraception.isHormonal(effective.contraception),
       );
     } catch (_) {
       return -1;

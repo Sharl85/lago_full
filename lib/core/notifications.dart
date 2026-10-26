@@ -132,8 +132,16 @@ class Reminders {
   }
 
   /// Reprogramme toutes les notifications. Renvoie le nombre programmé, ou -1 si refusé.
+  /// [periodAlerts] : false en mode grossesse / post-partum (pas d'alerte de règles).
+  /// [fertilityAlerts] : false avec une contraception hormonale (fenêtre fertile non pertinente).
   static Future<int> schedule(
-      {required CycleSettings settings, required AlertPrefs prefs, int? age, List<Appointment> appointments = const [], bool cycleAlerts = true}) async {
+      {required CycleSettings settings,
+      required AlertPrefs prefs,
+      int? age,
+      List<Appointment> appointments = const [],
+      bool cycleAlerts = true,
+      bool periodAlerts = true,
+      bool fertilityAlerts = true}) async {
     if (!supported) return 0;
     await cancelAll();
     if (!settings.remindersEnabled) return 0;
@@ -151,7 +159,7 @@ class Reminders {
     }
 
     // --- Moments importants du cycle (3 prochains cycles) ---
-    final cycles = !cycleAlerts
+    final cycles = !cycleAlerts || !periodAlerts
         ? const <ForecastCycle>[]
         : CycleCalculator.forecast(settings.lastPeriodDate, settings.cycleLength, settings.periodDuration, count: 4, fromToday: true);
     final h = prefs.alertHour, m = prefs.alertMinute;
@@ -161,10 +169,12 @@ class Reminders {
           'Pensez à prévoir vos protections et à prendre soin de vous.', 'Petit rappel bien-être.');
       add(AlertType.periodStart, at(c.periodStart, h, m), 'Règles prévues aujourd’hui 🌸',
           'Notez votre flux et vos sensations dans votre journal LaGo.', 'Un moment pour vous aujourd’hui.');
-      add(AlertType.fertileStart, at(c.fertileStart, h, m), 'Début de la fenêtre fertile 🌱',
-          'Une grossesse est possible à partir d’aujourd’hui et jusqu’au ${Dates.short(c.fertileEnd)}.', 'Nouvelle étape de votre cycle.');
-      add(AlertType.ovulation, at(c.ovulationDate, h, m), 'Ovulation estimée aujourd’hui ✨',
-          'Fertilité maximale. Protégez-vous si vous ne souhaitez pas de grossesse.', 'Nouvelle étape de votre cycle.');
+      if (fertilityAlerts) {
+        add(AlertType.fertileStart, at(c.fertileStart, h, m), 'Début de la fenêtre fertile 🌱',
+            'Une grossesse est possible à partir d’aujourd’hui et jusqu’au ${Dates.short(c.fertileEnd)}.', 'Nouvelle étape de votre cycle.');
+        add(AlertType.ovulation, at(c.ovulationDate, h, m), 'Ovulation estimée aujourd’hui ✨',
+            'Fertilité maximale. Protégez-vous si vous ne souhaitez pas de grossesse.', 'Nouvelle étape de votre cycle.');
+      }
       add(AlertType.pms, at(dayPlus(c.periodStart, -5), h, m), 'Période du SPM 🍂',
           'Humeur, fringales, seins sensibles : c’est hormonal. Soyez douce avec vous-même.', 'Prenez soin de vous cette semaine.');
     }
@@ -186,6 +196,15 @@ class Reminders {
       final cat = tr(LagoContent.tipCategories[tip.category] ?? 'Conseil');
       add(AlertType.dailyTip, at(day, prefs.tipHour, prefs.tipMinute), '💡 $cat — ${tr(tip.title)}', tr(tip.body),
           'Votre conseil du jour vous attend.');
+    }
+
+    // --- v5 : bilan du mois, le 1er de chaque mois ---
+    if (cycleAlerts) {
+      for (var i = 1; i <= 2; i++) {
+        final first = DateTime(today.year, today.month + i, 1);
+        add(AlertType.monthlyReport, at(first, prefs.tipHour, prefs.tipMinute), 'Votre bilan du mois est prêt 📊',
+            'Règles, symptômes, humeur : découvrez le résumé de votre mois dans LaGo.', 'Votre résumé du mois vous attend.');
+      }
     }
 
     // --- Rendez-vous médicaux : la veille (heure des alertes) et 2 h avant ---

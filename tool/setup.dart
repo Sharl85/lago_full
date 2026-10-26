@@ -134,6 +134,23 @@ void patchAndroidManifest() {
     </application>''';
     s = s.replaceFirst('</application>', widget);
   }
+  // v5 — liens externes (page de paiement, WhatsApp, appel d'un partenaire) : visibilité des apps (Android 11+)
+  if (!s.contains('LaGo : liens externes')) {
+    const queries = '''
+    <!-- LaGo : liens externes (url_launcher) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+    </queries>
+</manifest>''';
+    s = s.replaceFirst('</manifest>', queries);
+  }
   f.writeAsStringSync(s);
   stdout.writeln('✔ AndroidManifest.xml configuré');
 }

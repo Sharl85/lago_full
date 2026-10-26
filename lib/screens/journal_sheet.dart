@@ -33,6 +33,8 @@ class _JournalSheetState extends State<JournalSheet> {
   late String _flow;
   late String _mood;
   late Set<String> _symptoms;
+  late String _lh; // v5 : test d'ovulation
+  late String _mucus; // v5 : glaire cervicale
   late final TextEditingController _temp;
   late final TextEditingController _notes;
   DayLog? _existing;
@@ -44,6 +46,8 @@ class _JournalSheetState extends State<JournalSheet> {
     _flow = _existing?.flow ?? 'none';
     _mood = _existing?.mood ?? 'calm';
     _symptoms = {...?_existing?.symptoms};
+    _lh = _existing?.ovulationTest ?? '';
+    _mucus = _existing?.mucus ?? '';
     _temp = TextEditingController(text: _existing?.temperature ?? '');
     _notes = TextEditingController(text: _existing?.notes ?? '');
   }
@@ -73,6 +77,8 @@ class _JournalSheetState extends State<JournalSheet> {
         temperature: raw,
         symptoms: _symptoms.toList(),
         notes: notes.length > 2000 ? notes.substring(0, 2000) : notes,
+        ovulationTest: _lh,
+        mucus: _mucus,
         updatedAt: DateTime.now().toIso8601String(),
       ),
     );
@@ -143,6 +149,30 @@ class _JournalSheetState extends State<JournalSheet> {
               controller: _temp,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(hintText: tr('Ex : 36,6')),
+            ),
+            const SizedBox(height: 16),
+            // v5 — signes de fertilité : ils permettent à LaGo de confirmer l'ovulation
+            _label(Icons.science_outlined, 'Test d’ovulation (optionnel)'),
+            DropdownButtonFormField<String>(
+              // ignore: deprecated_member_use
+              value: _lh,
+              isExpanded: true,
+              items: OvulationTest.values.map((o) => DropdownMenuItem(value: o.key, child: T('${o.emoji}  ${o.label}'))).toList(),
+              onChanged: (v) => setState(() => _lh = v ?? ''),
+            ),
+            const SizedBox(height: 16),
+            _label(Icons.opacity, 'Glaire cervicale (optionnel)'),
+            DropdownButtonFormField<String>(
+              // ignore: deprecated_member_use
+              value: _mucus,
+              isExpanded: true,
+              items: Mucus.values.map((o) => DropdownMenuItem(value: o.key, child: T('${o.emoji}  ${o.label}'))).toList(),
+              onChanged: (v) => setState(() => _mucus = v ?? ''),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: T('Un test positif, une hausse de température ou une glaire « blanc d’œuf » aident LaGo à confirmer votre ovulation.',
+                  style: TextStyle(fontSize: 12, color: mutedColor(context))),
             ),
             const SizedBox(height: 16),
             _label(Icons.edit_note, 'Notes personnelles & pensées'),

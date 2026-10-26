@@ -22,6 +22,17 @@ defaults:
     shell: bash -eo pipefail {0}
 
 jobs:
+  # v5 — tests de l'API (paiement, SMS/WhatsApp, communauté…), sans accès réseau externe
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tests du serveur
+        run: cd server && node --test test/*.test.js
+
   android:
     runs-on: ubuntu-latest
     steps:

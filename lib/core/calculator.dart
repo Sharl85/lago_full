@@ -44,6 +44,9 @@ class CycleData {
 
   /// Date à laquelle les règles étaient attendues (= nextPeriodStart hors retard).
   final DateTime expectedPeriodStart;
+
+  /// v5 — ovulation confirmée par un signe noté (test LH, température, glaire) plutôt qu'estimée.
+  final bool ovulationConfirmed;
   final Phase phase;
   final String pregnancyChance;
   final Wisdom wisdom;
@@ -65,6 +68,7 @@ class CycleData {
     this.isLate = false,
     this.daysLate = 0,
     required this.expectedPeriodStart,
+    this.ovulationConfirmed = false,
     required this.phase,
     required this.pregnancyChance,
     required this.wisdom,
@@ -113,7 +117,11 @@ class CycleCalculator {
     return o < periodDuration ? periodDuration : o;
   }
 
-  static CycleData calculate(String lastPeriodIso, int cycleLength, int periodDuration, {DateTime? target}) {
+  /// [confirmedOvulation] : date d'ovulation détectée dans le journal pour le cycle en cours
+  /// (voir FertilitySigns). Elle remplace l'estimation, et les prochaines règles sont
+  /// alors attendues 14 jours après (durée de la phase lutéale), comme dans Flo.
+  static CycleData calculate(String lastPeriodIso, int cycleLength, int periodDuration,
+      {DateTime? target, DateTime? confirmedOvulation}) {
     final today = Dates.dateOnly(target ?? DateTime.now());
     var lmp = Dates.parseIso(lastPeriodIso) ?? Dates.addDays(today, -12);
     cycleLength = _clampCycle(cycleLength);
@@ -134,10 +142,22 @@ class CycleCalculator {
     }
 
     final currentPeriodEnd = Dates.addDays(lmp, periodDuration - 1);
-    final expectedPeriodStart = Dates.addDays(lmp, cycleLength);
+    var expectedPeriodStart = Dates.addDays(lmp, cycleLength);
+    var ovulation = Dates.addDays(lmp, ovulationOffset(cycleLength, periodDuration));
+
+    // Ovulation confirmée dans ce cycle (après les règles, pas dans le futur)
+    var confirmed = false;
+    final co = confirmedOvulation == null ? null : Dates.dateOnly(confirmedOvulation);
+    if (co != null && co.isAfter(currentPeriodEnd) && !co.isAfter(today) && Dates.diffInDays(co, lmp) < 60) {
+      confirmed = true;
+      ovulation = co;
+      expectedPeriodStart = Dates.addDays(co, lutealPhase);
+      final overdue = Dates.diffInDays(today, expectedPeriodStart);
+      isLate = overdue >= 0 && overdue < lateTolerance;
+      daysLate = isLate ? overdue + 1 : 0;
+    }
     final nextPeriodStart = isLate ? today : expectedPeriodStart;
     final nextPeriodEnd = Dates.addDays(nextPeriodStart, periodDuration - 1);
-    final ovulation = Dates.addDays(lmp, ovulationOffset(cycleLength, periodDuration));
     final fertileStart = Dates.addDays(ovulation, -5);
     final fertileEnd = Dates.addDays(ovulation, 1);
 
@@ -181,6 +201,7 @@ class CycleCalculator {
       isLate: isLate,
       daysLate: daysLate,
       expectedPeriodStart: expectedPeriodStart,
+      ovulationConfirmed: confirmed,
       phase: phases[key]!,
       pregnancyChance: chance,
       wisdom: wisdom[key]!,

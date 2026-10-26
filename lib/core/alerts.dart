@@ -29,7 +29,9 @@ class AlertType {
   static const pill = AlertType('pill', 'Prise de la pilule', 'Chaque jour à la même heure, pour ne pas oublier votre pilule.', '💊', false, 'lago_eveil');
   static const appointment = AlertType('appointment', 'Rendez-vous médicaux', 'La veille et 2 heures avant chaque rendez-vous noté dans LaGo.', '🩺', true, 'lago_carillon');
 
-  static const all = [periodSoon, periodStart, fertileStart, ovulation, pms, dailyLog, dailyTip, pill, appointment];
+  static const monthlyReport = AlertType('monthlyReport', 'Bilan du mois', 'Le 1er de chaque mois, un résumé de votre cycle, de vos symptômes et de votre humeur.', '📊', true, 'lago_douce');
+
+  static const all = [periodSoon, periodStart, fertileStart, ovulation, pms, dailyLog, dailyTip, pill, appointment, monthlyReport];
   static AlertType of(String key) => all.firstWhere((a) => a.key == key, orElse: () => periodSoon);
 }
 

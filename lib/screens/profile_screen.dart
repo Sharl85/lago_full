@@ -12,6 +12,9 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/profile_widgets.dart';
 import 'alerts_screen.dart';
+import 'explore_screen.dart';
+import 'life_mode_screen.dart';
+import 'privacy_screen.dart';
 import 'family_screen.dart';
 import 'health_reminders_screen.dart';
 import 'stats_screen.dart';
@@ -191,6 +194,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             await state.rescheduleReminders();
           },
         ),
+        // v5 — économie de données
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const T('Économie de données'),
+          subtitle: const T('Synchronisation seulement quand vous glissez l’accueil vers le bas.'),
+          value: s.dataSaver,
+          onChanged: (v) => state.updateSettings(s.copyWith(dataSaver: v)),
+        ),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.notifications_active_outlined, color: LagoColors.pink),
@@ -210,6 +221,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               : '${state.appointments.where((a) => !a.isPast).length} rendez-vous à venir'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HealthRemindersScreen())),
+        ),
+        // v5
+        if (!state.isParent)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.swap_horiz, color: LagoColors.pink),
+            title: const T('Mode de vie & contraception', style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: const T('Cycle, grossesse, post-partum, préménopause, Ramadan'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LifeModeScreen())),
+          ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.apps, color: LagoColors.pink),
+          title: const T('Plus de LaGo', style: TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: const T('Assistante, communauté, partenaires, SMS/WhatsApp, Premium'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ExploreScreen())),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.verified_user_outlined, color: LagoColors.green),
+          title: const T('Vos données', style: TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: const T('Aucune publicité, aucune revente : nos engagements'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyScreen())),
         ),
         Padding(
           padding: const EdgeInsets.only(top: 4),

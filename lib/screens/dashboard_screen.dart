@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
 import '../core/calculator.dart';
+import '../core/content_extra.dart';
+import '../core/life_mode.dart';
+import '../core/models.dart';
+import '../core/prediction.dart';
 import '../core/utils.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/cycle_dial.dart';
+import 'explore_screen.dart';
 import 'health_reminders_screen.dart';
+import 'life_mode_screen.dart';
+import 'monthly_report_screen.dart';
 import 'stats_screen.dart';
 import '../l10n/l10n.dart';
 
@@ -21,15 +28,30 @@ class DashboardScreen extends StatelessWidget {
       listenable: state,
       builder: (context, _) {
         final d = state.cycle;
+        // v5 — modes de vie : grossesse et post-partum remplacent le cadran du cycle
+        final s = state.effective;
+        final preg = s.isPregnant ? PregnancyInfo.fromIso(s.pregnancyStartDate) : null;
+        final cycleView = s.tracksPeriods || (s.isPregnant && preg == null);
         return RefreshIndicator(
           color: LagoColors.pink,
           onRefresh: () => state.syncNow(pull: true),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
             children: [
-              _heroCard(context, d),
-              const SizedBox(height: 14),
-              _statsCard(context, d),
+              if (preg != null) PregnancyCard(info: preg),
+              if (s.lifeMode == 'postpartum') LifeStageCard(settings: s),
+              if (cycleView) ...[
+                _heroCard(context, d),
+                const SizedBox(height: 14),
+                _predictionCard(context, state),
+              ],
+              if (s.lifeMode == 'perimenopause') ...[const SizedBox(height: 14), LifeStageCard(settings: s)],
+              if (state.healthSignals.isNotEmpty) ...[const SizedBox(height: 14), _signalsCard(context, state.healthSignals)],
+              if (s.ramadanMode) ...[const SizedBox(height: 14), _ramadanCard(context)],
+              if (cycleView) ...[
+                const SizedBox(height: 14),
+                _statsCard(context, d),
+              ],
               const SizedBox(height: 14),
               _wisdomCard(context, d),
               const SizedBox(height: 14),
@@ -42,6 +64,18 @@ class DashboardScreen extends StatelessWidget {
                 Expanded(
                   child: _shortcut(context, Icons.medication_outlined, 'Pilule & RDV',
                       () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HealthRemindersScreen()))),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: _shortcut(context, Icons.calendar_view_month, 'Bilan du mois',
+                      () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MonthlyReportScreen()))),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _shortcut(context, Icons.apps, 'Plus de LaGo',
+                      () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ExploreScreen()))),
                 ),
               ]),
               const SizedBox(height: 16),
@@ -127,6 +161,98 @@ class DashboardScreen extends StatelessWidget {
             ]),
           ),
         ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------------ v5
+  /// Fourchette des prochaines règles, ovulation confirmée, contraception.
+  Widget _predictionCard(BuildContext context, AppState state) {
+    final w = state.periodWindow;
+    final sign = state.ovulationSign;
+    final hormonal = Contraception.isHormonal(state.effective.contraception);
+    final conf = switch (w?.confidence) { 'high' => 'fiabilité élevée', 'medium' => 'fiabilité moyenne', _ => 'à affiner avec votre journal' };
+    return GlassCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (w != null)
+          Row(children: [
+            const Icon(Icons.date_range, color: LagoColors.pink, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                T('Prochaines règles probables : ${w.label}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                T('Fourchette de ±${w.spread} j · $conf', style: TextStyle(fontSize: 12, color: mutedColor(context))),
+              ]),
+            ),
+          ]),
+        if (sign != null && !hormonal) ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            const Icon(Icons.verified_outlined, color: LagoColors.purple, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: T('Ovulation confirmée le ${Dates.long(sign.date)} (${sign.methodLabel}). Prévisions recalculées.',
+                  style: const TextStyle(fontSize: 13.5)),
+            ),
+          ]),
+        ],
+        if (hormonal) ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            const Icon(Icons.shield_outlined, color: LagoColors.teal, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: T('Contraception hormonale : la fenêtre fertile affichée ne s’applique pas à vous.',
+                  style: TextStyle(fontSize: 13, color: mutedColor(context))),
+            ),
+          ]),
+        ],
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LifeModeScreen())),
+            child: const T('Mode de vie & contraception'),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _signalsCard(BuildContext context, List<HealthSignal> signals) {
+    return GlassCard(
+      borderColor: LagoColors.orange.withValues(alpha: 0.5),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const SectionTitle('À surveiller', icon: Icons.health_and_safety_outlined, iconColor: LagoColors.orange,
+            subtitle: 'Repères calculés d’après votre journal. LaGo ne pose pas de diagnostic.'),
+        for (final sig in signals)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(sig.isConsult ? Icons.medical_services_outlined : Icons.info_outline,
+                  size: 18, color: sig.isConsult ? LagoColors.orange : LagoColors.teal),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  T(sig.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  T(sig.message, style: const TextStyle(fontSize: 13, height: 1.35)),
+                ]),
+              ),
+            ]),
+          ),
+      ]),
+    );
+  }
+
+  Widget _ramadanCard(BuildContext context) {
+    final g = ExtraContent.guide('ramadan');
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        leading: const Text('🌙', style: TextStyle(fontSize: 26)),
+        title: const T('Mode Ramadan', style: TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: T(g.points.first, style: const TextStyle(fontSize: 12.5)),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => GuideScreen(guide: g))),
       ),
     );
   }

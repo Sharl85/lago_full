@@ -36,6 +36,9 @@ class AppUser {
   bool get isBlocked => status == 'blocked';
   bool get isServer => mode == 'server' && token != null;
 
+  /// v5 — compte anonyme : sans email, uniquement sur ce téléphone (identifiant « pseudo@anonyme »).
+  bool get isAnonymous => email.endsWith('@anonyme');
+
   factory AppUser.fromJson(Map<String, dynamic> j, {String? mode, String? token}) => AppUser(
         id: '${j['id']}',
         name: '${j['name'] ?? ''}',
@@ -91,6 +94,24 @@ class CycleSettings {
   final bool learnFromJournal;
   /// 'regular' | 'irregular' | 'unknown' (renseigné à l'inscription)
   final String cycleRegularity;
+
+  /// v5 — 'cycle' | 'pregnancy' | 'postpartum' | 'perimenopause'
+  final String lifeMode;
+
+  /// v5 — méthode de contraception (voir [Contraception]).
+  final String contraception;
+
+  /// v5 — 1er jour des dernières règles avant la grossesse (AAAA-MM-JJ), mode grossesse.
+  final String? pregnancyStartDate;
+
+  /// v5 — date de naissance du bébé (AAAA-MM-JJ), mode post-partum.
+  final String? babyBirthDate;
+
+  /// v5 — économie de données : synchronisation seulement à la demande (glisser vers le bas).
+  final bool dataSaver;
+
+  /// v5 — conseils adaptés au jeûne du Ramadan.
+  final bool ramadanMode;
   final String? updatedAt;
 
   const CycleSettings({
@@ -103,8 +124,21 @@ class CycleSettings {
     this.remindersEnabled = false,
     this.learnFromJournal = true,
     this.cycleRegularity = 'unknown',
+    this.lifeMode = 'cycle',
+    this.contraception = 'none',
+    this.pregnancyStartDate,
+    this.babyBirthDate,
+    this.dataSaver = false,
+    this.ramadanMode = false,
     this.updatedAt,
   });
+
+  static const lifeModes = ['cycle', 'pregnancy', 'postpartum', 'perimenopause'];
+
+  bool get isPregnant => lifeMode == 'pregnancy';
+
+  /// Les alertes et prévisions de règles n'ont de sens qu'en mode « cycle » ou « préménopause ».
+  bool get tracksPeriods => lifeMode == 'cycle' || lifeMode == 'perimenopause';
 
   factory CycleSettings.defaults() =>
       CycleSettings(lastPeriodDate: Dates.toIso(Dates.addDays(Dates.today(), -12)));
@@ -128,6 +162,12 @@ class CycleSettings {
       remindersEnabled: j['remindersEnabled'] == true,
       learnFromJournal: j['learnFromJournal'] != false,
       cycleRegularity: const ['regular', 'irregular', 'unknown'].contains(j['cycleRegularity']) ? j['cycleRegularity'] as String : 'unknown',
+      lifeMode: lifeModes.contains(j['lifeMode']) ? j['lifeMode'] as String : 'cycle',
+      contraception: Contraception.keys.contains(j['contraception']) ? j['contraception'] as String : 'none',
+      pregnancyStartDate: Dates.parseIso(j['pregnancyStartDate'] as String?) != null ? j['pregnancyStartDate'] as String : null,
+      babyBirthDate: Dates.parseIso(j['babyBirthDate'] as String?) != null ? j['babyBirthDate'] as String : null,
+      dataSaver: j['dataSaver'] == true,
+      ramadanMode: j['ramadanMode'] == true,
       updatedAt: j['updatedAt'] as String?,
     );
   }
@@ -142,6 +182,12 @@ class CycleSettings {
         'remindersEnabled': remindersEnabled,
         'learnFromJournal': learnFromJournal,
         'cycleRegularity': cycleRegularity,
+        'lifeMode': lifeMode,
+        'contraception': contraception,
+        'pregnancyStartDate': pregnancyStartDate,
+        'babyBirthDate': babyBirthDate,
+        'dataSaver': dataSaver,
+        'ramadanMode': ramadanMode,
         if (updatedAt != null) 'updatedAt': updatedAt,
       };
 
@@ -155,6 +201,12 @@ class CycleSettings {
     bool? remindersEnabled,
     bool? learnFromJournal,
     String? cycleRegularity,
+    String? lifeMode,
+    String? contraception,
+    String? pregnancyStartDate, // '' = effacer
+    String? babyBirthDate, // '' = effacer
+    bool? dataSaver,
+    bool? ramadanMode,
     String? updatedAt,
   }) =>
       CycleSettings(
@@ -167,6 +219,12 @@ class CycleSettings {
         remindersEnabled: remindersEnabled ?? this.remindersEnabled,
         learnFromJournal: learnFromJournal ?? this.learnFromJournal,
         cycleRegularity: cycleRegularity ?? this.cycleRegularity,
+        lifeMode: lifeMode ?? this.lifeMode,
+        contraception: contraception ?? this.contraception,
+        pregnancyStartDate: pregnancyStartDate == null ? this.pregnancyStartDate : (pregnancyStartDate.isEmpty ? null : pregnancyStartDate),
+        babyBirthDate: babyBirthDate == null ? this.babyBirthDate : (babyBirthDate.isEmpty ? null : babyBirthDate),
+        dataSaver: dataSaver ?? this.dataSaver,
+        ramadanMode: ramadanMode ?? this.ramadanMode,
         updatedAt: updatedAt ?? this.updatedAt,
       );
 }
@@ -178,6 +236,12 @@ class DayLog {
   final String temperature;
   final List<String> symptoms;
   final String notes;
+
+  /// v5 — test d'ovulation (LH) : '' | 'negative' | 'positive' | 'peak'
+  final String ovulationTest;
+
+  /// v5 — glaire cervicale : '' | 'dry' | 'sticky' | 'creamy' | 'watery' | 'eggwhite'
+  final String mucus;
   final String updatedAt;
 
   const DayLog({
@@ -186,6 +250,8 @@ class DayLog {
     this.temperature = '',
     this.symptoms = const [],
     this.notes = '',
+    this.ovulationTest = '',
+    this.mucus = '',
     required this.updatedAt,
   });
 
@@ -197,6 +263,8 @@ class DayLog {
             ? (j['symptoms'] as List).map((e) => '$e').where(Symptom.keys.contains).toSet().toList()
             : const [],
         notes: j['notes'] is String ? j['notes'] as String : '',
+        ovulationTest: OvulationTest.keys.contains(j['ovulationTest']) ? j['ovulationTest'] as String : '',
+        mucus: Mucus.keys.contains(j['mucus']) ? j['mucus'] as String : '',
         updatedAt: j['updatedAt'] is String ? j['updatedAt'] as String : DateTime.now().toIso8601String(),
       );
 
@@ -206,10 +274,63 @@ class DayLog {
         'temperature': temperature,
         'symptoms': symptoms,
         'notes': notes,
+        'ovulationTest': ovulationTest,
+        'mucus': mucus,
         'updatedAt': updatedAt,
       };
 
   bool get hasPeriodFlow => flow != 'none' && flow != 'spotting';
+
+  /// Glaire « blanc d'œuf » ou aqueuse : signe de fertilité élevée.
+  bool get hasFertileMucus => mucus == 'eggwhite' || mucus == 'watery';
+  bool get hasPositiveLh => ovulationTest == 'positive' || ovulationTest == 'peak';
+}
+
+/// v5 — résultat d'un test d'ovulation (LH).
+class OvulationTest {
+  static const values = [
+    Option('', 'Pas de test', '–', Icons.remove),
+    Option('negative', 'Négatif', '➖', Icons.remove_circle_outline),
+    Option('positive', 'Positif', '➕', Icons.add_circle_outline),
+    Option('peak', 'Pic (très positif)', '⭐', Icons.star_outline),
+  ];
+  static List<String> get keys => values.map((e) => e.key).toList();
+}
+
+/// v5 — aspect de la glaire cervicale.
+class Mucus {
+  static const values = [
+    Option('', 'Non observée', '–', Icons.remove),
+    Option('dry', 'Sèche / absente', '🏜️', Icons.wb_sunny_outlined),
+    Option('sticky', 'Collante', '🧴', Icons.grain),
+    Option('creamy', 'Crémeuse', '🥛', Icons.opacity),
+    Option('watery', 'Aqueuse', '💧', Icons.water_drop_outlined),
+    Option('eggwhite', 'Blanc d’œuf (filante)', '🥚', Icons.egg_outlined),
+  ];
+  static List<String> get keys => values.map((e) => e.key).toList();
+}
+
+/// v5 — méthodes de contraception.
+class Contraception {
+  static const values = [
+    Option('none', 'Aucune', '–', Icons.remove),
+    Option('condom', 'Préservatif', '🛡️', Icons.shield_outlined),
+    Option('pill', 'Pilule combinée', '💊', Icons.medication_outlined),
+    Option('minipill', 'Micropilule (progestative)', '💊', Icons.medication_outlined),
+    Option('implant', 'Implant', '📍', Icons.push_pin_outlined),
+    Option('iud_hormonal', 'Stérilet hormonal (DIU)', '🔷', Icons.change_history),
+    Option('iud_copper', 'Stérilet au cuivre (DIU)', '🔶', Icons.change_history),
+    Option('injection', 'Injection (Depo, Sayana)', '💉', Icons.vaccines_outlined),
+    Option('patch', 'Patch', '🩹', Icons.healing_outlined),
+    Option('ring', 'Anneau vaginal', '⭕', Icons.circle_outlined),
+    Option('natural', 'Méthode naturelle', '🌿', Icons.eco_outlined),
+    Option('other', 'Autre', '•', Icons.more_horiz),
+  ];
+  static List<String> get keys => values.map((e) => e.key).toList();
+  static Option of(String key) => values.firstWhere((e) => e.key == key, orElse: () => values.first);
+
+  /// Méthodes hormonales qui modifient ou suppriment l'ovulation : les prévisions de fertilité ne s'appliquent pas.
+  static bool isHormonal(String key) => const ['pill', 'minipill', 'implant', 'iud_hormonal', 'injection', 'patch', 'ring'].contains(key);
 }
 
 class Option {

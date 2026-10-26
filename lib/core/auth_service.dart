@@ -166,6 +166,33 @@ class AuthService {
     return AuthResult.ok(u, offline: Api.enabled);
   }
 
+  /// v5 — Mode anonyme : aucun email, aucune donnée envoyée au serveur.
+  /// L'identifiant de connexion est « pseudo@anonyme » et le code secret sert de mot de passe.
+  Future<AuthResult> registerAnonymous(String pseudo, String secret, int? age) async {
+    final clean = pseudo.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    if (clean.length < 3) return const AuthResult.fail('Choisissez un pseudo d’au moins 3 lettres ou chiffres (sans espace).');
+    if (secret.length < 4) return const AuthResult.fail('Le code secret doit contenir au moins 4 caractères.');
+    final login = '$clean@anonyme';
+    final users = localUsers;
+    if (users.any((u) => u['email'] == login)) return const AuthResult.fail('Ce pseudo est déjà utilisé sur ce téléphone.');
+    final data = {
+      'id': newId(),
+      'name': pseudo.trim().length > 30 ? pseudo.trim().substring(0, 30) : pseudo.trim(),
+      'email': login,
+      'role': 'user',
+      'accountType': 'member',
+      'age': age,
+      'status': 'active',
+      'createdAt': DateTime.now().toIso8601String(),
+      'passwordHash': Secrets.hash(secret),
+    };
+    users.add(data);
+    await saveLocalUsers(users);
+    final u = AppUser.fromJson(data, mode: 'local');
+    await saveSession(u);
+    return AuthResult.ok(u);
+  }
+
   Future<void> logout() async {
     final u = currentUser;
     if (u != null) {

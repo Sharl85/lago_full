@@ -111,6 +111,36 @@ class Api {
   static Future<ApiResult> avatarPut(String blob) => _request('POST', '/api/profile/avatar', {'data': blob});
   static Future<ApiResult> avatarDelete() => _request('DELETE', '/api/profile/avatar');
 
+  // --- v5 : fonctions disponibles sur le serveur ---
+  static Future<ApiResult> features() => _request('GET', '/api/features');
+
+  // --- v5 : Premium (Mobile Money via CinetPay) ---
+  static Future<ApiResult> premiumStatus() => _request('GET', '/api/premium/status');
+  static Future<ApiResult> premiumCheckout(String plan, {String? phone}) =>
+      _request('POST', '/api/premium/checkout', {'plan': plan, if (phone != null && phone.isNotEmpty) 'phone': phone});
+  static Future<ApiResult> premiumVerify(String transactionId) =>
+      _request('POST', '/api/premium/verify', {'transactionId': transactionId});
+
+  // --- v5 : rappels SMS / WhatsApp ---
+  static Future<ApiResult> messagingGet() => _request('GET', '/api/messaging');
+  static Future<ApiResult> messagingSet(Map<String, dynamic> body) => _request('POST', '/api/messaging', body);
+
+  // --- v5 : assistant, communauté, partenaires ---
+  static Future<ApiResult> assistant(String question) => _request('POST', '/api/assistant', {'question': question});
+  static Future<ApiResult> communityList() => _request('GET', '/api/community/questions');
+  static Future<ApiResult> communityAsk(String question, String topic) =>
+      _request('POST', '/api/community/questions', {'question': question, 'topic': topic});
+  static Future<ApiResult> partners() => _request('GET', '/api/partners');
+
+  // --- v5 : Super Admin (modération, partenaires, statistiques ONG) ---
+  static Future<ApiResult> adminCommunity() => _request('GET', '/api/admin/community');
+  static Future<ApiResult> adminModerate(String id, String action, {String? answer}) =>
+      _request('POST', '/api/admin/community', {'id': id, 'action': action, if (answer != null) 'answer': answer});
+  static Future<ApiResult> adminSavePartner(Map<String, dynamic> partner) => _request('POST', '/api/admin/partners', partner);
+  static Future<ApiResult> adminDeletePartner(String id) =>
+      _request('DELETE', '/api/admin/partners?id=${Uri.encodeQueryComponent(id)}');
+  static Future<ApiResult> adminAggregate() => _request('GET', '/api/admin/aggregate');
+
   // --- Super Admin ---
   static Future<ApiResult> adminStats() => _request('GET', '/api/admin/stats');
   static Future<ApiResult> adminUsers() => _request('GET', '/api/admin/users');

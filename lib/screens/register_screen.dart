@@ -21,6 +21,10 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final state = AppState.instance;
   int _step = 0;
+
+  /// v5 — âge en dessous duquel l'accord d'un parent est demandé (à adapter à la loi du pays).
+  static const parentalConsentAge = 15;
+  bool _parentalConsent = false;
   bool _busy = false;
   String? _error;
 
@@ -92,6 +96,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return null;
       case 3:
         if (!_acceptTerms || !_acceptMedical) return 'Merci de cocher les deux cases pour continuer.';
+        // v5 — consentement parental pour les plus jeunes
+        if (!_parent && (_age ?? 99) < parentalConsentAge && !_parentalConsent) {
+          return 'Un parent ou un adulte responsable doit donner son accord (case à cocher).';
+        }
         return null;
     }
     return null;
@@ -430,6 +438,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         onChanged: (v) => setState(() => _acceptMedical = v ?? false),
         title: const T('J’ai compris que les prévisions sont indicatives, ne remplacent pas un avis médical et ne sont pas une méthode de contraception.'),
       ),
+      if (age < parentalConsentAge && !_parent)
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          value: _parentalConsent,
+          onChanged: (v) => setState(() => _parentalConsent = v ?? false),
+          title: const T('Un parent ou un adulte responsable a lu ces conditions et donne son accord pour que j’utilise LaGo.'),
+        ),
       if (age < 15 && !_parent)
         Container(
           margin: const EdgeInsets.only(top: 8),
