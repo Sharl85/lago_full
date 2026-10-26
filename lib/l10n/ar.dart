@@ -649,6 +649,7 @@ const Map<String, String> arStrings = {
   'Android : mp3, wav, ogg ou m4a (Android 10 ou plus récent). iPhone : wav, caf ou aiff de 30 secondes maximum.': 'Android: ‏mp3 أو wav أو ogg أو m4a (Android 10 أو أحدث). iPhone: ‏wav أو caf أو aiff بمدة 30 ثانية كحدّ أقصى.',
   'Choisir cette sonnerie': 'اختيار هذه النغمة',
   'Règles dans {} jour{} 🩸': 'الدورة الشهرية بعد {0} يوم 🩸',
+  'Règles en retard de {} jour{} (attendues le {}). Notez-les dans le journal dès leur arrivée.': 'الدورة الشهرية متأخرة {0} يوم (كانت متوقعة في {2}). سجّليها في اليوميات فور وصولها.',
   'Prochaines règles estimées dans {} jour{} ({}).': 'الدورة الشهرية التالية متوقعة بعد {0} يوم ({2}).',
   '{} jour{} avant': 'قبل {0} يوم',
   'Sauvegarde restaurée ({} jour{} de journal).': 'تمت استعادة النسخة الاحتياطية ({0} يوم من اليوميات).',

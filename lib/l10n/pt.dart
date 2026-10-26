@@ -649,6 +649,7 @@ const Map<String, String> ptStrings = {
   'Android : mp3, wav, ogg ou m4a (Android 10 ou plus récent). iPhone : wav, caf ou aiff de 30 secondes maximum.': 'Android: mp3, wav, ogg ou m4a (Android 10 ou mais recente). iPhone: wav, caf ou aiff de 30 segundos no máximo.',
   'Choisir cette sonnerie': 'Escolher este toque',
   'Règles dans {} jour{} 🩸': 'Menstruação em {0} dia{1} 🩸',
+  'Règles en retard de {} jour{} (attendues le {}). Notez-les dans le journal dès leur arrivée.': 'Menstruação atrasada {0} dia{1} (prevista para {2}). Registre no diário assim que chegar.',
   'Prochaines règles estimées dans {} jour{} ({}).': 'Próxima menstruação estimada em {0} dia{1} ({2}).',
   '{} jour{} avant': '{0} dia{1} antes',
   'Sauvegarde restaurée ({} jour{} de journal).': 'Backup restaurado ({0} dia{1} de diário).',

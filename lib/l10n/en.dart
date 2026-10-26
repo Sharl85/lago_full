@@ -649,6 +649,7 @@ const Map<String, String> enStrings = {
   'Android : mp3, wav, ogg ou m4a (Android 10 ou plus récent). iPhone : wav, caf ou aiff de 30 secondes maximum.': 'Android: mp3, wav, ogg or m4a (Android 10 or later). iPhone: wav, caf or aiff, 30 seconds maximum.',
   'Choisir cette sonnerie': 'Choose this ringtone',
   'Règles dans {} jour{} 🩸': 'Period in {0} day{1} 🩸',
+  'Règles en retard de {} jour{} (attendues le {}). Notez-les dans le journal dès leur arrivée.': 'Period late by {0} day{1} (expected on {2}). Log it in the journal as soon as it starts.',
   'Prochaines règles estimées dans {} jour{} ({}).': 'Next period expected in {0} day{1} ({2}).',
   '{} jour{} avant': '{0} day{1} before',
   'Sauvegarde restaurée ({} jour{} de journal).': 'Backup restored ({0} journal day{1}).',

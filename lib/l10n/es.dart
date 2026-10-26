@@ -649,6 +649,7 @@ const Map<String, String> esStrings = {
   'Android : mp3, wav, ogg ou m4a (Android 10 ou plus récent). iPhone : wav, caf ou aiff de 30 secondes maximum.': 'Android: mp3, wav, ogg o m4a (Android 10 o posterior). iPhone: wav, caf o aiff de 30 segundos como máximo.',
   'Choisir cette sonnerie': 'Elegir este tono',
   'Règles dans {} jour{} 🩸': 'Regla en {0} día{1} 🩸',
+  'Règles en retard de {} jour{} (attendues le {}). Notez-les dans le journal dès leur arrivée.': 'Regla con {0} día{1} de retraso (prevista el {2}). Anótala en el diario en cuanto llegue.',
   'Prochaines règles estimées dans {} jour{} ({}).': 'Próxima regla estimada en {0} día{1} ({2}).',
   '{} jour{} avant': '{0} día{1} antes',
   'Sauvegarde restaurée ({} jour{} de journal).': 'Copia de seguridad restaurada ({0} día{1} de diario).',

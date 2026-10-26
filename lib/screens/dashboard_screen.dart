@@ -77,7 +77,9 @@ class DashboardScreen extends StatelessWidget {
   Widget _heroCard(BuildContext context, CycleData d) {
     final dark = isDark(context);
     final n = d.daysUntilNextPeriod;
-    final countdown = n == 0
+    final countdown = d.isLate
+        ? 'Règles en retard de ${d.daysLate} jour${d.daysLate > 1 ? 's' : ''} (attendues le ${Dates.long(d.expectedPeriodStart)}). Notez-les dans le journal dès leur arrivée.'
+        : n == 0
         ? "Vos règles sont prévues aujourd'hui. Prenez soin de vous !"
         : n > 0
             ? 'Prochaines règles estimées dans $n jour${n > 1 ? 's' : ''} (${Dates.long(d.nextPeriodStart)}).'

@@ -37,6 +37,13 @@ class CycleData {
   final DateTime fertileEnd;
   final int daysUntilNextPeriod;
   final int daysUntilOvulation;
+
+  /// Règles attendues mais pas encore notées (comme « en retard » dans Flo).
+  final bool isLate;
+  final int daysLate;
+
+  /// Date à laquelle les règles étaient attendues (= nextPeriodStart hors retard).
+  final DateTime expectedPeriodStart;
   final Phase phase;
   final String pregnancyChance;
   final Wisdom wisdom;
@@ -55,6 +62,9 @@ class CycleData {
     required this.fertileEnd,
     required this.daysUntilNextPeriod,
     required this.daysUntilOvulation,
+    this.isLate = false,
+    this.daysLate = 0,
+    required this.expectedPeriodStart,
     required this.phase,
     required this.pregnancyChance,
     required this.wisdom,
@@ -77,6 +87,10 @@ enum DayType { normal, period, periodPredicted, fertile, ovulation }
 class CycleCalculator {
   static const lutealPhase = 14;
 
+  /// Jours de retard pendant lesquels on affiche « règles en retard » (comme Flo)
+  /// avant de basculer automatiquement sur le cycle suivant.
+  static const lateTolerance = 14;
+
   static const phases = {
     PhaseKey.menstrual: Phase(PhaseKey.menstrual, 'Phase Menstruelle', 'Repos, écoute de son corps et douceur.',
         Color(0xFFE57373), Color(0xFFFFEBEE)),
@@ -91,8 +105,11 @@ class CycleCalculator {
   static int _clampCycle(int v) => v.clamp(15, 60).toInt();
   static int _clampPeriod(int v, int cycle) => v.clamp(1, cycle - 1).toInt();
 
+  /// Jours entre le Jour 1 des règles et l'ovulation.
+  /// Ovulation au Jour (cycle − 14), soit Jour 1 + (cycle − 14 − 1) : J14 pour 28 jours, comme Flo.
+  /// (Correction : l'ancien calcul donnait J15, un jour trop tard, fenêtre fertile comprise.)
   static int ovulationOffset(int cycleLength, int periodDuration) {
-    final o = cycleLength - lutealPhase;
+    final o = cycleLength - lutealPhase - 1;
     return o < periodDuration ? periodDuration : o;
   }
 
@@ -102,16 +119,23 @@ class CycleCalculator {
     cycleLength = _clampCycle(cycleLength);
     periodDuration = _clampPeriod(periodDuration, cycleLength);
 
-    // Recale sur le cycle en cours (date ancienne ou future)
+    // Règles attendues mais pas encore notées : retard affiché pendant [lateTolerance] jours.
+    // Au-delà (ou date future) : recalage sur le cycle en cours (comportement d'origine).
     var since = Dates.diffInDays(today, lmp);
-    if (since >= cycleLength || since < 0) {
+    var isLate = false;
+    var daysLate = 0;
+    if (since >= cycleLength && since < cycleLength + lateTolerance) {
+      isLate = true;
+      daysLate = since - cycleLength + 1;
+    } else if (since >= cycleLength || since < 0) {
       final shift = (since / cycleLength).floor();
       lmp = Dates.addDays(lmp, shift * cycleLength);
       since = Dates.diffInDays(today, lmp);
     }
 
     final currentPeriodEnd = Dates.addDays(lmp, periodDuration - 1);
-    final nextPeriodStart = Dates.addDays(lmp, cycleLength);
+    final expectedPeriodStart = Dates.addDays(lmp, cycleLength);
+    final nextPeriodStart = isLate ? today : expectedPeriodStart;
     final nextPeriodEnd = Dates.addDays(nextPeriodStart, periodDuration - 1);
     final ovulation = Dates.addDays(lmp, ovulationOffset(cycleLength, periodDuration));
     final fertileStart = Dates.addDays(ovulation, -5);
@@ -154,6 +178,9 @@ class CycleCalculator {
       fertileEnd: fertileEnd,
       daysUntilNextPeriod: Dates.diffInDays(nextPeriodStart, today),
       daysUntilOvulation: Dates.diffInDays(ovulation, today),
+      isLate: isLate,
+      daysLate: daysLate,
+      expectedPeriodStart: expectedPeriodStart,
       phase: phases[key]!,
       pregnancyChance: chance,
       wisdom: wisdom[key]!,
@@ -168,7 +195,7 @@ class CycleCalculator {
     var start = Dates.parseIso(lastPeriodIso) ?? Dates.today();
     if (fromToday) {
       final elapsed = Dates.diffInDays(Dates.today(), start);
-      if (elapsed >= cycleLength || elapsed < 0) {
+      if (elapsed >= cycleLength + lateTolerance || elapsed < 0) {
         start = Dates.addDays(start, (elapsed / cycleLength).floor() * cycleLength);
       }
     }

@@ -28,9 +28,26 @@ void main() {
     test('cycle de 28 jours', () {
       final r = CycleCalculator.calculate('2026-09-01', 28, 5, target: DateTime(2026, 9, 12));
       expect(r.currentCycleDay, 12);
-      expect(Dates.toIso(r.ovulationDate), '2026-09-15');
+      expect(Dates.toIso(r.ovulationDate), '2026-09-14'); // Jour 14, comme Flo
+      expect(Dates.toIso(r.fertileStart), '2026-09-09');
+      expect(Dates.toIso(r.fertileEnd), '2026-09-15');
       expect(Dates.toIso(r.nextPeriodStart), '2026-09-29');
       expect(r.phase.key, PhaseKey.ovulation);
+    });
+
+    test('règles non notées : retard affiché au lieu d’un nouveau cycle', () {
+      final r = CycleCalculator.calculate('2026-09-01', 28, 5, target: DateTime(2026, 10, 3));
+      expect(r.isLate, isTrue);
+      expect(r.daysLate, 5);
+      expect(r.currentCycleDay, 33);
+      expect(Dates.toIso(r.expectedPeriodStart), '2026-09-29');
+      expect(Dates.toIso(r.nextPeriodStart), '2026-10-03');
+    });
+
+    test('plus de 14 jours de retard : recalage sur le cycle en cours', () {
+      final r = CycleCalculator.calculate('2026-09-01', 28, 5, target: DateTime(2026, 10, 20));
+      expect(r.isLate, isFalse);
+      expect(r.currentCycleDay, inInclusiveRange(1, 28));
     });
 
     test('phases menstruelle, folliculaire, lutéale', () {
@@ -101,8 +118,8 @@ void main() {
     test('jours des phases', () {
       final r = PhaseRanges.compute(28, 5);
       expect(r.of(PhaseKey.menstrual).label, 'jours 1 à 5');
-      expect(r.of(PhaseKey.ovulation).start, 10);
-      expect(r.of(PhaseKey.ovulation).end, 16);
+      expect(r.of(PhaseKey.ovulation).start, 9);
+      expect(r.of(PhaseKey.ovulation).end, 15);
       expect(r.of(PhaseKey.luteal).end, 28);
     });
   });
