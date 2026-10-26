@@ -10,6 +10,9 @@
  *   ALLOWED_ORIGINS   Origines CORS autorisées, séparées par des virgules (l'app mobile est déjà incluse)
  *   STATIC_DIR        Dossier des fichiers web servis (défaut : dist/web, sinon src/)
  *   DATA_DIR          Dossier de la base de données (défaut : data/)
+ *
+ * Fonctions v5 (Premium CinetPay, SMS/WhatsApp, assistant, communauté, partenaires, statistiques ONG) :
+ * voir les variables d'environnement en tête de features.js.
  */
 'use strict';
 
@@ -18,6 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const { Database } = require('./db');
 const security = require('./security');
+const features = require('./features');
 
 const ROOT = __dirname; // dossier server/ autonome (API seule pour l'app Flutter)
 const PORT = parseInt(process.env.PORT, 10) || 8080;
@@ -56,7 +60,8 @@ const db = new Database({
 const SECRET = security.loadSecret(DATA_DIR);
 const loginLimiter = security.createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
 const registerLimiter = security.createRateLimiter({ windowMs: 60 * 60 * 1000, max: 20 });
-setInterval(() => { loginLimiter.cleanup(); registerLimiter.cleanup(); }, 10 * 60 * 1000).unref();
+const assistantLimiter = security.createRateLimiter({ windowMs: 60 * 60 * 1000, max: 20 });
+setInterval(() => { loginLimiter.cleanup(); registerLimiter.cleanup(); assistantLimiter.cleanup(); }, 10 * 60 * 1000).unref();
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -66,6 +71,11 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const FLOWS = ['none', 'spotting', 'light', 'medium', 'heavy'];
 const MOODS = ['calm', 'happy', 'energetic', 'romantic', 'sensitive', 'tired', 'stressed', 'irritated'];
 const SYMPTOMS = ['cramps', 'breasts', 'headache', 'bloating', 'fatigue', 'acne', 'cravings', 'backpain', 'libido', 'cervical'];
+// v5 : signes de fertilité, modes de vie, contraception
+const OVULATION_TESTS = ['', 'negative', 'positive', 'peak'];
+const MUCUS = ['', 'dry', 'sticky', 'creamy', 'watery', 'eggwhite'];
+const LIFE_MODES = ['cycle', 'pregnancy', 'postpartum', 'perimenopause'];
+const CONTRACEPTIONS = ['none', 'condom', 'pill', 'minipill', 'implant', 'iud_hormonal', 'iud_copper', 'injection', 'patch', 'ring', 'natural', 'other'];
 const SYMPTOM_LABELS = {
   cramps: 'Crampes', breasts: 'Seins sensibles', headache: 'Maux de tête', bloating: 'Ballonnements',
   fatigue: 'Fatigue intense', acne: 'Acné', cravings: 'Fringales', backpain: 'Mal de dos',
@@ -95,6 +105,15 @@ function sanitizeSettings(input, previous = {}) {
     if (typeof input[k] === 'boolean') out[k] = input[k];
   });
   if (['regular', 'irregular', 'unknown'].includes(input.cycleRegularity)) out.cycleRegularity = input.cycleRegularity;
+  ['dataSaver', 'ramadanMode'].forEach(k => {
+    if (typeof input[k] === 'boolean') out[k] = input[k];
+  });
+  if (LIFE_MODES.includes(input.lifeMode)) out.lifeMode = input.lifeMode;
+  if (CONTRACEPTIONS.includes(input.contraception)) out.contraception = input.contraception;
+  if (isValidDate(input.pregnancyStartDate)) out.pregnancyStartDate = input.pregnancyStartDate;
+  else if (input.pregnancyStartDate === null || input.pregnancyStartDate === '') delete out.pregnancyStartDate;
+  if (isValidDate(input.babyBirthDate)) out.babyBirthDate = input.babyBirthDate;
+  else if (input.babyBirthDate === null || input.babyBirthDate === '') delete out.babyBirthDate;
   // Le code PIN reste exclusivement sur l'appareil : jamais stocké côté serveur.
   delete out.pinCode;
   delete out.pinHash;
@@ -115,6 +134,8 @@ function sanitizeLog(input) {
     temperature,
     symptoms: Array.isArray(src.symptoms) ? [...new Set(src.symptoms.filter(s => SYMPTOMS.includes(s)))] : [],
     notes: typeof src.notes === 'string' ? src.notes.slice(0, 2000) : '',
+    ovulationTest: OVULATION_TESTS.includes(src.ovulationTest) ? src.ovulationTest : '',
+    mucus: MUCUS.includes(src.mucus) ? src.mucus : '',
     updatedAt: typeof src.updatedAt === 'string' && !Number.isNaN(Date.parse(src.updatedAt))
       ? src.updatedAt
       : new Date().toISOString()
@@ -271,6 +292,11 @@ function deleteUserData(userId) {
   delete db.data.logs[userId];
 }
 
+/** Effacement complet d'un compte supprimé (données v5 comprises). */
+function deleteAccountExtras(userId) {
+  features.onUserDeleted(db, userId);
+}
+
 /** Supprime tout ce qui relie un compte à d'autres (suivi parental, invitations, photo chiffrée). */
 function deleteUserLinks(userId) {
   db.data.familyLinks = (db.data.familyLinks || []).filter(l => l.parentId !== userId && l.childId !== userId);
@@ -396,6 +422,7 @@ async function handleApi(req, res, url) {
     db.data.users = db.data.users.filter(u => u.id !== user.id);
     deleteUserData(user.id);
     deleteUserLinks(user.id);
+    deleteAccountExtras(user.id);
     db.logActivity(`Compte supprimé par son utilisatrice (${user.name})`);
     db.save();
     return sendJson(req, res, 200, { success: true });
@@ -660,10 +687,17 @@ async function handleApi(req, res, url) {
     db.data.users = db.data.users.filter(u => u.id !== userId);
     deleteUserData(userId);
     deleteUserLinks(userId);
+    deleteAccountExtras(userId);
     db.logActivity(`Suppression de l'utilisatrice ${target.name} par ${admin.name}`);
     db.save();
     return sendJson(req, res, 200, { success: true });
   }
+
+  // --- Fonctions v5 (module features.js) ---
+  const handled = await features.handle({
+    req, res, url, db, sendJson, parseBody, requireAuth, requireAdmin, HttpError, assistantLimiter
+  });
+  if (handled) return;
 
   throw new HttpError(404, 'Route API introuvable');
 }
@@ -791,6 +825,12 @@ if (require.main === module) {
     console.log(`🗄️  Base de données : ${db.file}`);
     console.log(`🧪 Mode démo : ${DEMO_MODE ? 'activé (DEMO_MODE=false pour le désactiver)' : 'désactivé'}`);
     if (!process.env.LAGO_SECRET) console.log('⚠️  LAGO_SECRET non défini : un secret local a été généré dans data/.secret');
+    const pc = features.premiumConfig();
+    const mc = features.messagingConfig();
+    console.log(`💳 Premium CinetPay : ${pc.enabled ? 'activé' : 'désactivé (CINETPAY_APIKEY, CINETPAY_SITE_ID, PUBLIC_URL)'}`);
+    console.log(`💬 Rappels SMS/WhatsApp : ${mc.enabled ? `activés (${mc.channels.join(', ')}, ${mc.hour} h)` : 'désactivés (MESSAGING_PROVIDER)'}`);
+    console.log(`🤖 Assistant en ligne : ${process.env.ANTHROPIC_API_KEY ? 'activé' : 'désactivé (ANTHROPIC_API_KEY)'}`);
+    features.startScheduler(db);
   });
 }
 
