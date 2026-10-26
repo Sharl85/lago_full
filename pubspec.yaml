@@ -33,6 +33,13 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.1
   flutter_native_splash: ^2.4.1
 
+# Correctif build (oct. 2026) : le paquet `image` 4.11.0, tiré par `pdf` et les outils
+# d'icône/splash, appelle ZLibDecoder.decodeLazy qui n'existe pas dans archive 4.0.x
+# → « compileFlutterBuildRelease » échouait sur Android et iOS. On garde la version
+# qui compilait le 7 octobre. À retirer quand `image` publiera une version corrigée.
+dependency_overrides:
+  image: 4.10.1
+
 flutter:
   uses-material-design: true
   assets:
